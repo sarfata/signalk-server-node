@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+
+const Simple = require('../providers/simple')
+
+let handleMessage = (id, delta) => {
+  console.log(JSON.stringify(delta))
+}
+
+if (process.argv[3]) {
+  const paths = JSON.parse(process.argv[3])
+  const outValues = [paths.length]
+  handleMessage = (id, delta) => {
+    delta.updates &&
+      delta.updates.forEach(update => {
+        update.values &&
+          update.values.forEach(pathValue => {
+            const index = paths.indexOf(pathValue.path)
+            if (index >= 0) {
+              outValues[index] = pathValue.value
+              console.log(outValues.join(';'))
+            }
+          })
+      })
+  }
+}
+
+const app = {
+  config: {
+    configPath: __dirname
+  },
+  signalk: {
+    emit: () => {}
+  },
+  emit: () => {},
+  handleMessage
+}
+
+const createPipedProvider = new require('../lib/pipedproviders')(app)
+  .createPipedProvider
+
+createPipedProvider({
+  pipeElements: [
+    {
+      type: 'providers/Simple',
+      options: {
+        logging: false,
+        noThrottle: true,
+        type: 'FileStream',
+        subOptions: {
+          dataType: 'Multiplexed',
+          filename: process.argv[2],
+          noThrottle: true,
+          keepRunning: false
+        },
+        app
+      }
+    }
+  ]
+})
